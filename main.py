@@ -54,3 +54,23 @@ def login(user: User):
         "message": "Login successful",
         "user": response.data[0]
     }
+
+class Student(BaseModel):
+    name: str
+    age: int
+    course: str
+
+students = [] #temporary storage
+
+@app.post("/students")
+def add_student(student: Student):
+    students.append(student)
+    return {
+            "message": "Student created successfully",
+            "student": student    
+        }
+
+#get all students
+@app.get("/students")
+def get_students():
+    return students
