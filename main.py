@@ -1,40 +1,56 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException
+from supabase import create_client  # type: ignore[import-not-found]
+from dotenv import load_dotenv
+import os
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+
+load_dotenv()
 
 app = FastAPI()
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+supabase = create_client(
+    os.getenv("SUPABASE_URL"),
+    os.getenv("SUPABASE_KEY"),
+)
+
+class User(BaseModel):
+    username: str
+    password: str
+    
 
 
+@app.post("/users")
+def add_student(user: User):
+    response = supabase \
+        .table("users") \
+        .insert(user.model_dump()) \
+        .execute()
+    return response.data
 
-class Student(BaseModel):
-    name: str
-    age: int
-    course: str
-
-students = [] #temporary storage
-
-@app.post("/students")
-def add_student(student: Student):
-    students.append(student)
-    return {
-            "message": "Student created successfully",
-            "student": student    
-        }
-
-#get all students
-@app.get("/students")
-def get_students():
-    return students
+@app.post("/login")
+def login(user: User):
+    response = supabase \
+        .table("users") \
+        .select("*") \
+        .eq("username", user.username) \
+        .eq("password", user.password) \
+        .execute()
+    if len(response.data) == 0:
+        raise HTTPException(
+            status_code=401,
+            detail = "Invalid username or password"
+        )
+    
+    return{
+        "message": "Login successful",
+        "user": response.data[0]
+    }
